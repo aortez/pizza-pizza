@@ -3,6 +3,8 @@ module test-webassembly
 go 1.16
 
 require (
+	github.com/dominikh/go-js-dom v0.0.0-20210725211120-f030747120f2 // indirect
+	github.com/gopherjs/gopherjs v0.0.0-20211101210129-f9bde24e5ca2 // indirect
 	github.com/llgcode/draw2d v0.0.0-20210904075650-80aa0a2a901d // indirect
 	github.com/markfarnan/go-canvas v0.0.0-20200722235510-6971ccd00770 // indirect
 	github.com/shurcooL/go v0.0.0-20200502201357-93f07166e636 // indirect

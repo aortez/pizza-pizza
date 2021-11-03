@@ -1,5 +1,7 @@
 <html>
     <head>
+        <title>Go triangles!</title>
+
         <meta charset="utf-8"/>
         <script src="wasm_exec.js"></script>
         <script>
@@ -8,6 +10,21 @@
                 go.run(result.instance);
             });
         </script>
+
+        <style>
+        #mycanvas {
+            position:fixed;
+            opacity:0.9;
+            width: 100%;
+            height:100%;
+            top:0;right:0;bottom:0;left:0;
+        }
+        body,pre { margin:0;padding:0; }
+        </style>
     </head>
-    <body></body>
+
+    <body>
+        <canvas id="mycanvas"></canvas>
+        <div id="fps">0</div>
+    </body>
 </html>

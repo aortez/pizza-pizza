@@ -1,35 +1,43 @@
 package main
 
 import (
+    "fmt"
     "image/color"
     "math"
     "math/rand"
     "syscall/js"
     "time"
 
-    . "test-webassembly/ball"
+    "test-webassembly/ball"
     "test-webassembly/vec2"
-
-    "github.com/llgcode/draw2d/draw2dimg"
-    "github.com/llgcode/draw2d/draw2dkit"
-    "github.com/markfarnan/go-canvas/canvas"
 )
+
+type Ball = ball.Ball
 
 var balls [] Ball
 
 var done chan struct{}
 
-var myCanvas *canvas.Canvas2d
 var width float64
 var height float64
 
-func main() {
-    // Make Canvas 90% of window size.
-    myCanvas, _ = canvas.NewCanvas2d(false)
-    myCanvas.Create(int(js.Global().Get("innerWidth").Float() * 0.9), int(js.Global().Get("innerHeight").Float() * 0.9))
+var ctx js.Value
 
-    height = float64(myCanvas.Height())
-    width = float64(myCanvas.Width())
+func main() {
+    worldScale := 1000
+
+    // Init Canvas stuff.
+    doc := js.Global().Get("document")
+    canvasEl := doc.Call("getElementById", "mycanvas")
+    width = doc.Get("body").Get("clientWidth").Float()
+    height = doc.Get("body").Get("clientHeight").Float()
+    canvasEl.Call("setAttribute", "width", width)
+    canvasEl.Call("setAttribute", "height", height)
+
+    ctx = canvasEl.Call("getContext", "2d")
+    ctx.Call("scale", 1 / worldScale, 1 / worldScale)
+    canvasEl.Set("width", width)
+    canvasEl.Set("height", height)
 
     rand.Seed(time.Now().UnixNano())
 
@@ -39,8 +47,7 @@ func main() {
     balls = append(balls, Ball{ Mass: 5 * 5 * math.Pi, Radius: 5, V: vec2.Vec2{ X: 13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 40, Y: 340 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
     balls = append(balls, Ball{ Mass: 35 * 35 * math.Pi, Radius: 35, V: vec2.Vec2{ X: -13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 500, Y: 340 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
 
-    println("Pi: ", math.Pi)
-    for i := 0; i < 30; i++ {
+    for i := 0; i < 100; i++ {
         r := rand.Float64() * 100
         m := math.Pi * r * r
         balls = append(balls, Ball{
@@ -55,27 +62,54 @@ func main() {
             Color: color.RGBA{uint8(rand.Float32() * 255), uint8(rand.Float32() * 255), uint8(rand.Float32() * 255), 0xff } })
     }
 
-    myCanvas.Start(60, Render)
+	var tmark float64
+    var renderFrame js.Func
+    renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        now := args[0].Float()
+        tdiff := now - tmark
+        doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000/tdiff))
+        tmark = now
 
+        // Pool window size to handle resize
+        curBodyW := doc.Get("body").Get("clientWidth").Float()
+        curBodyH := doc.Get("body").Get("clientHeight").Float()
+        if curBodyW != width || curBodyH != height {
+            width, height = curBodyW, curBodyH
+            canvasEl.Set("width", width)
+            canvasEl.Set("height", height)
+        }
+
+        advance(tdiff)
+
+        ctx.Set("fillStyle", "rgb(0,0,0)")
+        ctx.Call("fillRect", 0, 0, width, height)
+
+        for index := 0; index < len(balls); index++ {
+            ball := &balls[index]
+            ctx.Set("fillStyle", fmt.Sprintf("rgb(%d,%d,%d)", ball.Color.R, ball.Color.G, ball.Color.B));
+
+            ctx.Call("beginPath")
+            ctx.Call("arc",
+                ball.Center.X,
+                ball.Center.Y,
+                ball.Radius,
+                0, 2 * math.Pi, false );
+            ctx.Call("fill")
+            ctx.Call("stroke")
+            ctx.Call("closePath")
+        }
+
+        js.Global().Call("requestAnimationFrame", renderFrame)
+        return nil
+    })
+
+    js.Global().Call("requestAnimationFrame", renderFrame)
+
+    println("done!")
     <-done
 }
 
-// Helper function which calls the required func (in this case 'render') every time.Duration,  Call as a go-routine to prevent blocking, as this never returns
-func doEvery(d time.Duration, f func(time.Time)) {
-    for x := range time.Tick(d) {
-        f(x)
-    }
-}
-
-// Called from the 'requestAnimationFrame' function.
-// It may also be called separately from a 'doEvery' function, if the user prefers drawing to be separate from the animationFrame callback.
-func Render(context *draw2dimg.GraphicContext) bool {
-    var outlineColor color.RGBA = color.RGBA{0x00, 0x00, 0x00, 0x88}
-
-    var backGroundColor color.RGBA = color.RGBA{0x00, 0x00, 0x00, 0xff}
-    context.SetFillColor(backGroundColor)
-    context.Clear()
-
+func advance(deltaT float64) {
     for index := 0; index < len(balls); index++ {
         ball := &balls[index]
 
@@ -83,7 +117,6 @@ func Render(context *draw2dimg.GraphicContext) bool {
             ballOther := &balls[j]
 
             if ball.Center.Distance(ballOther.Center) < (ball.Radius + ballOther.Radius) {
-                println("Collided")
                 ball.Collide(ballOther)
             }
         }
@@ -103,18 +136,6 @@ func Render(context *draw2dimg.GraphicContext) bool {
             ball.Center.Y = ball.Radius
         }
 
-        ball.Center = ball.Center.Plus(ball.V)
-
-        context.SetFillColor(ball.Color)
-        context.SetStrokeColor(outlineColor)
-
-        context.BeginPath()
-        // context.ArcTo(ball.x, ball.y, ball.radius, ball.radius, 0, 6.12)
-        draw2dkit.Circle(context, ball.Center.X, ball.Center.Y, ball.Radius)
-        context.FillStroke()
+        ball.Center = ball.Center.Plus(ball.V.Times(deltaT * 0.01))
   }
-
-  context.Close()
-
-  return true
 }
