@@ -35,32 +35,24 @@ func (this Vec2) Distance(that Vec2) float64 {
     return d
 }
 
-func (this Vec2) Mag() float64 {
-    m := math.Sqrt(this.X * this.X + this.Y * this.Y)
+func (vec Vec2) Mag() float64 {
+    m := math.Sqrt(vec.X * vec.X + vec.Y * vec.Y)
     return m
 }
 
-func (this Vec2) Normalize() Vec2 {
-    m := this.Mag()
-    this.X /= m
-    this.Y /= m
-    return this
+func (vec Vec2) Normalize() Vec2 {
+    m := vec.Mag()
+    vec.X /= m
+    vec.Y /= m
+    return vec
 }
 
-func (this Vec2) Times(scalar float64) Vec2{
-    this.X *= scalar
-    this.Y *= scalar
-    return this
+func (vec Vec2) Times(scalar float64) Vec2{
+    vec.X *= scalar
+    vec.Y *= scalar
+    return vec
 }
 
-//
-//   divided_by( scalar ) {
-//     this.x /= scalar;
-//     this.y /= scalar;
-//     return this;
-//   }
-//
-//
 func (this Vec2) Dot(that Vec2) float64 {
     var scalarProduct float64 = this.X * that.X + this.Y * that.Y
     return scalarProduct
@@ -74,14 +66,3 @@ func (this Vec2) ToString() string {
         return string(res)
     }
 }
-
-//
-//   toString() {
-//     return "(" + this.x + ", " + this.y + ")";
-//   }
-//
-//   toStringVerbose() {
-//     return "vec2 x: " + this.x + ", y: " + this.y;
-//   }
-//
-// }

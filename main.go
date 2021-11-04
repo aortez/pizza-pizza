@@ -2,104 +2,104 @@ package main
 
 import (
     "fmt"
-    "image/color"
-    "math"
     "math/rand"
+    "strconv"
     "syscall/js"
     "time"
 
-    "test-webassembly/ball"
-    "test-webassembly/vec2"
+    "test-webassembly/view"
+    "test-webassembly/world"
 )
-
-type Ball = ball.Ball
-
-var balls [] Ball
 
 var done chan struct{}
 
-var width float64
-var height float64
-
-var ctx js.Value
-
 func main() {
-    worldScale := 1000
+    var view view.View = view.CreateCanvasContext()
 
-    // Init Canvas stuff.
-    doc := js.Global().Get("document")
-    canvasEl := doc.Call("getElementById", "mycanvas")
-    width = doc.Get("body").Get("clientWidth").Float()
-    height = doc.Get("body").Get("clientHeight").Float()
-    canvasEl.Call("setAttribute", "width", width)
-    canvasEl.Call("setAttribute", "height", height)
-
-    ctx = canvasEl.Call("getContext", "2d")
-    ctx.Call("scale", 1 / worldScale, 1 / worldScale)
-    canvasEl.Set("width", width)
-    canvasEl.Set("height", height)
+    var world world.World
+    world.Init(view.Width, view.Height)
 
     rand.Seed(time.Now().UnixNano())
 
-    balls = append(balls, Ball{ Mass: 35 * 35 * math.Pi, Radius: 35, V: vec2.Vec2{ X: 13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 40, Y: 40 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
-    balls = append(balls, Ball{ Mass: 35 * 35 * math.Pi, Radius: 35, V: vec2.Vec2{ X: -13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 500, Y: 40 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
+    keyUpEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        e := args[0]
+        println("e.Get(\"which\").Int()", e.Get("which").Int())
+        return nil
+    })
+    defer keyUpEvt.Release()
 
-    balls = append(balls, Ball{ Mass: 5 * 5 * math.Pi, Radius: 5, V: vec2.Vec2{ X: 13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 40, Y: 340 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
-    balls = append(balls, Ball{ Mass: 35 * 35 * math.Pi, Radius: 35, V: vec2.Vec2{ X: -13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 500, Y: 340 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
+    mouseDownEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        e := args[0]
+        // Tell world that we are grabbing the ball at coordinates x,y.
+        // TODO...
 
-    for i := 0; i < 100; i++ {
-        r := rand.Float64() * 100
-        m := math.Pi * r * r
-        balls = append(balls, Ball{
-            Mass: m,
-            Radius: r,
-            V: vec2.Vec2 {
-                X: (rand.Float64() - 0.5) * 30,
-                Y: (rand.Float64() - 0.5) * 30},
-            Center: vec2.Vec2 {
-                X: rand.Float64() * width,
-                Y: rand.Float64() * height},
-            Color: color.RGBA{uint8(rand.Float32() * 255), uint8(rand.Float32() * 255), uint8(rand.Float32() * 255), 0xff } })
-    }
 
-	var tmark float64
+        // println("e.Get(\"target\"): ", string(e.Get("target"))
+        // println("canvasEl: ", canvasEl)
+        // if e.Get("target") != canvasEl {
+        //     return nil
+        // }
+        mx := e.Get("clientX").Float()
+        my := e.Get("clientY").Float()
+        fmt.Printf("mx, my: %f, %f", mx, my)
+        return nil
+    })
+    defer mouseDownEvt.Release()
+
+    // TODO mouseUpEvt
+    // Tell world that we are releasing any currently held ball.
+
+    doc := js.Global().Get("document")
+
+    numBallsInputEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        evt := args[0]
+        fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
+        if err != nil {
+            println("Invalid value", err)
+            return nil
+        } else {
+            println("Setting num balls to: ", fval)
+            doc.Call("getElementById", "num-balls-value").Set("innerHTML", fmt.Sprintf("%.1f", fval))
+        }
+        world.SetNumBalls(int(fval))
+        return nil
+    })
+    defer numBallsInputEvt.Release()
+
+    speedInputEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        evt := args[0]
+        fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
+        if err != nil {
+            println("Invalid value", err)
+            return nil
+        } else {
+            println("Setting time scalar to: ", fval)
+            doc.Call("getElementById", "speed-value").Set("innerHTML", fmt.Sprintf("%.01f", fval))
+        }
+        world.TimeScalar = fval
+        return nil
+    })
+    defer speedInputEvt.Release()
+
+    doc.Call("addEventListener", "keyup", keyUpEvt)
+    doc.Call("addEventListener", "mousedown", mouseDownEvt)
+    doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
+    doc.Call("getElementById", "num-balls").Call("addEventListener", "input", numBallsInputEvt)
+
+    var tmark float64
     var renderFrame js.Func
     renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
         now := args[0].Float()
         tdiff := now - tmark
-        doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000/tdiff))
+        doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000 / tdiff))
         tmark = now
 
-        // Pool window size to handle resize
-        curBodyW := doc.Get("body").Get("clientWidth").Float()
-        curBodyH := doc.Get("body").Get("clientHeight").Float()
-        if curBodyW != width || curBodyH != height {
-            width, height = curBodyW, curBodyH
-            canvasEl.Set("width", width)
-            canvasEl.Set("height", height)
-        }
+        world.Advance(tdiff)
 
-        advance(tdiff)
-
-        ctx.Set("fillStyle", "rgb(0,0,0)")
-        ctx.Call("fillRect", 0, 0, width, height)
-
-        for index := 0; index < len(balls); index++ {
-            ball := &balls[index]
-            ctx.Set("fillStyle", fmt.Sprintf("rgb(%d,%d,%d)", ball.Color.R, ball.Color.G, ball.Color.B));
-
-            ctx.Call("beginPath")
-            ctx.Call("arc",
-                ball.Center.X,
-                ball.Center.Y,
-                ball.Radius,
-                0, 2 * math.Pi, false );
-            ctx.Call("fill")
-            ctx.Call("stroke")
-            ctx.Call("closePath")
-        }
+        world.Draw(&view)
 
         js.Global().Call("requestAnimationFrame", renderFrame)
+
         return nil
     })
 
@@ -107,35 +107,4 @@ func main() {
 
     println("done!")
     <-done
-}
-
-func advance(deltaT float64) {
-    for index := 0; index < len(balls); index++ {
-        ball := &balls[index]
-
-        for j := index + 1; j < len(balls); j++ {
-            ballOther := &balls[j]
-
-            if ball.Center.Distance(ballOther.Center) < (ball.Radius + ballOther.Radius) {
-                ball.Collide(ballOther)
-            }
-        }
-
-        if ball.Center.X + ball.V.X > width - ball.Radius {
-            ball.V.X = -ball.V.X
-            ball.Center.X = width - ball.Radius
-        } else if ball.Center.X + ball.V.X < ball.Radius {
-            ball.V.X = -ball.V.X
-            ball.Center.X = ball.Radius
-        }
-        if ball.Center.Y + ball.V.Y > height - ball.Radius {
-            ball.V.Y = -ball.V.Y
-            ball.Center.Y = height - ball.Radius
-        } else if ball.Center.Y + ball.V.Y < ball.Radius {
-            ball.V.Y = -ball.V.Y
-            ball.Center.Y = ball.Radius
-        }
-
-        ball.Center = ball.Center.Plus(ball.V.Times(deltaT * 0.01))
-  }
 }

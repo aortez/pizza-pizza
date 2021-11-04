@@ -5,9 +5,6 @@ import (
     "image/color"
     "math"
     "math/rand"
-    // "strconv"
-    // "syscall/js"
-    // "time"
 
     "test-webassembly/ball"
     "test-webassembly/vec2"
@@ -25,8 +22,11 @@ type World struct {
     TimeScalar float64
 }
 
-func (w *World) Init () {
-    w.TimeScalar = 0.01
+func (w *World) Init (width float64, height float64) {
+    w.Width = width
+    w.Height = height
+
+    w.TimeScalar = 0.3
 
     w.balls = []Ball{}
     w.balls = append(w.balls, Ball{ Mass: 35 * 35 * math.Pi, Radius: 35, V: vec2.Vec2{ X: 13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 40, Y: 40 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
@@ -35,7 +35,21 @@ func (w *World) Init () {
     w.balls = append(w.balls, Ball{ Mass: 5 * 5 * math.Pi, Radius: 5, V: vec2.Vec2{ X: 13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 40, Y: 340 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
     w.balls = append(w.balls, Ball{ Mass: 35 * 35 * math.Pi, Radius: 35, V: vec2.Vec2{ X: -13.7, Y: -5.7 }, Center: vec2.Vec2{ X: 500, Y: 340 }, Color: color.RGBA{ 0xff, 0x00, 0xff, 0xff } })
 
-    for i := 0; i < 100; i++ {
+    w.SetNumBalls(50)
+}
+
+func (w *World) SetNumBalls (numBalls int) {
+    // Simple cases are do nothing or remove balls.
+    if numBalls == len(w.balls) {
+        return
+    } else if numBalls < len(w.balls) {
+        w.balls = w.balls[0:numBalls]
+        return
+    }
+
+    // Otherwise we're adding balls.
+    toAdd := numBalls - len(w.balls)
+    for i := 0; i < toAdd; i++ {
         r := rand.Float64() * 100
         m := math.Pi * r * r
         w.balls = append(w.balls, Ball{
@@ -54,44 +68,52 @@ func (w *World) Init () {
 func (w *World) Advance(deltaT float64) {
     gravityScalar := 1.0
 
+    // Handle interactions with other balls.
     for index := 0; index < len(w.balls); index++ {
         ball := &w.balls[index]
 
-        // Handle interactions with other balls.
         for j := index + 1; j < len(w.balls); j++ {
             ballOther := &w.balls[j]
 
-            // They other collide or apply gravity to each other.
+            // They either collide or apply gravity to each other.
             if ball.Center.Distance(ballOther.Center) < (ball.Radius + ballOther.Radius) {
                 ball.Collide(ballOther)
             } else {
                 d := ball.Center.Distance(ballOther.Center);
                 F := (gravityScalar * ball.Mass * ballOther.Mass) / (d * d);
                 a := F / ball.Mass;
+                b := F / ballOther.Mass;
                 D := (ballOther.Center.Minus(ball.Center)).Normalize();
                 ball.V = ball.V.Plus(D.Times(a));
+                ballOther.V = ballOther.V.Minus(D.Times(b));
             }
         }
+    }
 
-        // Bound off of window bounds.
-        if ball.Center.X + ball.V.X > w.Width - ball.Radius {
+    // Bounce off of window bounds.
+    for index := 0; index < len(w.balls); index++ {
+        ball := &w.balls[index]
+
+        if ball.Center.X > w.Width - ball.Radius {
             ball.V.X = -ball.V.X
             ball.Center.X = w.Width - ball.Radius
-        } else if ball.Center.X + ball.V.X < ball.Radius {
+        } else if ball.Center.X < ball.Radius {
             ball.V.X = -ball.V.X
             ball.Center.X = ball.Radius
         }
-        if ball.Center.Y + ball.V.Y > w.Height - ball.Radius {
+
+        if ball.Center.Y > w.Height - ball.Radius {
             ball.V.Y = -ball.V.Y
             ball.Center.Y = w.Height - ball.Radius
-        } else if ball.Center.Y + ball.V.Y < ball.Radius {
+        } else if ball.Center.Y < ball.Radius {
             ball.V.Y = -ball.V.Y
             ball.Center.Y = ball.Radius
         }
 
         // Move the ball.
-        ball.Center = ball.Center.Plus(ball.V.Times(deltaT * w.TimeScalar))
-  }
+        timeScalar := w.TimeScalar * 0.01
+        ball.Center = ball.Center.Plus(ball.V.Times(deltaT * timeScalar))
+    }
 }
 
 func (world *World) Draw(view *view.View) {
@@ -104,6 +126,7 @@ func (world *World) Draw(view *view.View) {
     curBodyW := view.Doc.Get("body").Get("clientWidth").Float()
     curBodyH := view.Doc.Get("body").Get("clientHeight").Float()
     if curBodyW != world.Width || curBodyH != world.Height {
+        fmt.Printf("Changing world.Width/Height from %f/%f to %f/%f", world.Width, world.Height, curBodyW, curBodyH)
         world.Width, world.Height = curBodyW, curBodyH
         view.CanvasEl.Set("width", world.Width)
         view.CanvasEl.Set("height", world.Height)
