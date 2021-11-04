@@ -70,6 +70,10 @@ func (this *Ball) Collide (that *Ball) {
     that.V = v2t.Minus(dv2t.Times(elastic_factor))
 }
 
+func (ball *Ball) Contains(point vec2.Vec2) bool {
+    return ball.Center.Distance(point) < ball.Radius
+}
+
 func (this Ball) ToString() string {
     res, err := json.Marshal(this)
     if err != nil {

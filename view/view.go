@@ -1,18 +1,8 @@
 package view
 
 import (
-    // "fmt"
-    // "image/color"
-    // "math"
-    // "math/rand"
-    // "strconv"
     "syscall/js"
-    // "time"
-
-    // "test-webassembly/ball"
-    // "test-webassembly/vec2"
 )
-
 
 type View struct {
     Doc js.Value

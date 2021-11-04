@@ -16,6 +16,8 @@ type Ball = ball.Ball
 type World struct {
     balls []Ball
 
+    mouseDownBall *Ball
+
     Width float64
     Height float64
 
@@ -149,4 +151,36 @@ func (world *World) Draw(view *view.View) {
         view.Ctx.Call("stroke")
         view.Ctx.Call("closePath")
     }
+}
+
+func (world *World) GrabBall(x float64, y float64) {
+    for i := 0; i < len(world.balls); i++ {
+        ball := &world.balls[i]
+        if ball.Contains(vec2.Vec2{ X: x, Y: y }) {
+            println("yes we can")
+            world.mouseDownBall = ball
+        }
+    }
+}
+
+func (world *World) MoveBall(x float64, y float64) {
+    if world.mouseDownBall == nil {
+        return
+    }
+
+    var ball *Ball = world.mouseDownBall
+
+    newLocation := vec2.Vec2{ X: x, Y: y }
+
+    // TODO There is probably a more consistent way to adjust the velocity to
+    // properly match the frame rate.  Maybe if we kept track of the average
+    // delta T we could guess what the actual velocity ought to be.
+    throwScalar := 100
+    ball.V = newLocation.Minus(ball.Center).Times(throwScalar)
+
+    ball.Center = newLocation
+}
+
+func (world *World) ReleaseBall() {
+    world.mouseDownBall = nil
 }

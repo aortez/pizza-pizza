@@ -31,23 +31,35 @@ func main() {
     mouseDownEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
         e := args[0]
         // Tell world that we are grabbing the ball at coordinates x,y.
-        // TODO...
-
-
-        // println("e.Get(\"target\"): ", string(e.Get("target"))
-        // println("canvasEl: ", canvasEl)
-        // if e.Get("target") != canvasEl {
+        // TODO Maybe only handle events originating from the canvas element?
+        // var target js.Value = e.Get("target")
+        // if target != view.CanvasEl {
         //     return nil
         // }
         mx := e.Get("clientX").Float()
         my := e.Get("clientY").Float()
-        fmt.Printf("mx, my: %f, %f", mx, my)
+        world.GrabBall(mx, my)
+        fmt.Printf("mx, my: %f, %f\n", mx, my)
         return nil
     })
     defer mouseDownEvt.Release()
 
-    // TODO mouseUpEvt
-    // Tell world that we are releasing any currently held ball.
+    mouseMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        e := args[0]
+        mx := e.Get("clientX").Float()
+        my := e.Get("clientY").Float()
+        world.MoveBall(mx, my)
+        fmt.Printf("mx, my: %f, %f\n", mx, my)
+        return nil
+    })
+    defer mouseDownEvt.Release()
+
+    mouseUpEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        world.ReleaseBall()
+        fmt.Printf("Release the ball")
+        return nil
+    })
+    defer mouseDownEvt.Release()
 
     doc := js.Global().Get("document")
 
@@ -83,15 +95,17 @@ func main() {
 
     doc.Call("addEventListener", "keyup", keyUpEvt)
     doc.Call("addEventListener", "mousedown", mouseDownEvt)
-    doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
+    doc.Call("addEventListener", "mousemove", mouseMoveEvt)
+    doc.Call("addEventListener", "mouseup", mouseUpEvt)
     doc.Call("getElementById", "num-balls").Call("addEventListener", "input", numBallsInputEvt)
+    doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
 
     var tmark float64
     var renderFrame js.Func
     renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
         now := args[0].Float()
         tdiff := now - tmark
-        doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000 / tdiff))
+        doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000/tdiff))
         tmark = now
 
         world.Advance(tdiff)

@@ -53,6 +53,12 @@ func (vec Vec2) Times(scalar float64) Vec2{
     return vec
 }
 
+func (vec Vec2) DividedBy(scalar float64) Vec2{
+    vec.X /= scalar
+    vec.Y /= scalar
+    return vec
+}
+
 func (this Vec2) Dot(that Vec2) float64 {
     var scalarProduct float64 = this.X * that.X + this.Y * that.Y
     return scalarProduct
