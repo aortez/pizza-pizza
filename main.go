@@ -44,6 +44,35 @@ func main() {
     })
     defer mouseDownEvt.Release()
 
+    touchStartEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        e := args[0]
+        touch := e.Get("changedTouches").Index(0)
+        mx := touch.Get("clientX").Float()
+        my := touch.Get("clientY").Float()
+        world.GrabBall(mx, my)
+        fmt.Printf("touch start on mx, my: %f, %f\n", mx, my)
+        return nil
+    })
+    defer touchStartEvt.Release()
+
+    touchMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        e := args[0]
+        touch := e.Get("changedTouches").Index(0)
+        mx := touch.Get("clientX").Float()
+        my := touch.Get("clientY").Float()
+        world.MoveBall(mx, my)
+        fmt.Printf("touch move on mx, my: %f, %f\n", mx, my)
+        return nil
+    })
+    defer touchMoveEvt.Release()
+
+    touchEndEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        world.ReleaseBall()
+        println("touch ended")
+        return nil
+    })
+    defer touchEndEvt.Release()
+
     mouseMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
         e := args[0]
         mx := e.Get("clientX").Float()
@@ -51,7 +80,7 @@ func main() {
         world.MoveBall(mx, my)
         return nil
     })
-    defer mouseDownEvt.Release()
+    defer mouseMoveEvt.Release()
 
     mouseUpEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
         world.ReleaseBall()
@@ -127,6 +156,9 @@ func main() {
     })
     defer speedInputEvt.Release()
 
+    doc.Call("addEventListener", "touchstart", touchStartEvt, true)
+    doc.Call("addEventListener", "touchmove", touchMoveEvt, true)
+    doc.Call("addEventListener", "touchend", touchEndEvt, true)
     doc.Call("addEventListener", "keyup", keyUpEvt)
     doc.Call("addEventListener", "mousedown", mouseDownEvt)
     doc.Call("addEventListener", "mousemove", mouseMoveEvt)

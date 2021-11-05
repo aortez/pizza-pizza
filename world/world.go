@@ -37,7 +37,7 @@ func (w *World) Init (width float64, height float64) {
 
     // TODO Set these params at start up by querying the controller's value
     // or by pushing the values here to the controller.
-    w.TimeScalar = 0.256
+    w.TimeScalar = 1.024
     w.BallSpawnRate = 0.1
 
     w.balls = []Ball{}
@@ -187,7 +187,7 @@ func (w *World) Advance(deltaT float64) {
         // TODO There is probably a more consistent way to adjust the velocity to
         // properly match the frame rate.  Maybe if we kept track of the average
         // delta T we could guess what the actual velocity ought to be.
-        throwScalar := 25.0
+        throwScalar := 1.0
 
         w.mouseDownBall.V = w.mouseDownLocation.Minus(w.mouseDownBall.Center).Times(throwScalar)
         println("w.mouseDownBall.V: ", w.mouseDownBall.V.ToString())
