@@ -1,8 +1,13 @@
 package view
 
 import (
+    "fmt"
+    "math"
     "syscall/js"
+    "test-webassembly/ball"
 )
+
+type Ball = ball.Ball
 
 type View struct {
     Doc js.Value
@@ -13,6 +18,22 @@ type View struct {
 }
 
 // TODO: Create functions for drawing primatives so that the world can just call those.
+
+func (view *View) Draw(ball *Ball) {
+    view.Ctx.Set("fillStyle", fmt.Sprintf("rgb(%d,%d,%d)", ball.Color.R, ball.Color.G, ball.Color.B));
+
+    view.Ctx.Call("beginPath")
+    view.Ctx.Call("arc",
+        ball.Center.X,
+        ball.Center.Y,
+        ball.Radius,
+        0,
+        2 * math.Pi,
+         false);
+    view.Ctx.Call("fill")
+    view.Ctx.Call("stroke")
+    view.Ctx.Call("closePath")
+}
 
 func CreateCanvasContext() View {
     // Init Canvas stuff.

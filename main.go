@@ -39,7 +39,7 @@ func main() {
         mx := e.Get("clientX").Float()
         my := e.Get("clientY").Float()
         world.GrabBall(mx, my)
-        fmt.Printf("mx, my: %f, %f\n", mx, my)
+        fmt.Printf("mouse down mx, my: %f, %f\n", mx, my)
         return nil
     })
     defer mouseDownEvt.Release()
@@ -49,14 +49,13 @@ func main() {
         mx := e.Get("clientX").Float()
         my := e.Get("clientY").Float()
         world.MoveBall(mx, my)
-        fmt.Printf("mx, my: %f, %f\n", mx, my)
         return nil
     })
     defer mouseDownEvt.Release()
 
     mouseUpEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
         world.ReleaseBall()
-        fmt.Printf("Release the ball")
+        fmt.Printf("mouse up\n")
         return nil
     })
     defer mouseDownEvt.Release()
@@ -88,7 +87,42 @@ func main() {
             println("Setting time scalar to: ", fval)
             doc.Call("getElementById", "speed-value").Set("innerHTML", fmt.Sprintf("%.01f", fval))
         }
-        world.TimeScalar = fval
+
+        var timeSteps = map[int]float64 {
+            1: 0.001,
+            3: 0.002,
+            4: 0.004,
+            5: 0.008,
+            6: 0.016,
+            7: 0.032,
+            8: 0.064,
+            9: 0.128,
+            10: 0.256,
+            11: 0.512,
+            12: 1.024,
+            13: 2.048,
+            14: 4.096,
+            15: 8.192,
+            16: 16.384,
+        }
+
+        world.TimeScalar = timeSteps[int(fval)]
+        return nil
+    })
+    defer speedInputEvt.Release()
+
+    spawnRateInputEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        evt := args[0]
+        fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
+        if err != nil {
+            println("Invalid value", err)
+            return nil
+        } else {
+            println("Setting spawn rate to: ", fval)
+            doc.Call("getElementById", "ball-spawn-rate-value").Set("innerHTML", fmt.Sprintf("%.01f", fval))
+        }
+
+        world.BallSpawnRate = fval
         return nil
     })
     defer speedInputEvt.Release()
@@ -99,6 +133,7 @@ func main() {
     doc.Call("addEventListener", "mouseup", mouseUpEvt)
     doc.Call("getElementById", "num-balls").Call("addEventListener", "input", numBallsInputEvt)
     doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
+    doc.Call("getElementById", "ball-spawn-rate").Call("addEventListener", "input", spawnRateInputEvt)
 
     var tmark float64
     var renderFrame js.Func

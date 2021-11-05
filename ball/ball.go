@@ -11,6 +11,7 @@ type Ball struct {
     Color color.RGBA
     Radius float64
     Center vec2.Vec2
+    Health float64
     Mass float64
     V vec2.Vec2
 }
@@ -68,10 +69,30 @@ func (this *Ball) Collide (that *Ball) {
 
     this.V = v1t.Plus(dv1t.Times(elastic_factor))
     that.V = v2t.Minus(dv2t.Times(elastic_factor))
+
+    this.Health -= dv1t.Mag();
+    that.Health -= dv2t.Mag();
 }
 
 func (ball *Ball) Contains(point vec2.Vec2) bool {
     return ball.Center.Distance(point) < ball.Radius
+}
+
+func (ball *Ball) Interact (ballOther *Ball) {
+    gravityScalar := 1.0
+
+    // They either collide or apply gravity to each other.
+    if ball.Center.Distance(ballOther.Center) < (ball.Radius + ballOther.Radius) {
+        ball.Collide(ballOther)
+    } else {
+        d := ball.Center.Distance(ballOther.Center);
+        F := (gravityScalar * ball.Mass * ballOther.Mass) / (d * d);
+        a := F / ball.Mass;
+        b := F / ballOther.Mass;
+        D := (ballOther.Center.Minus(ball.Center)).Normalize();
+        ball.V = ball.V.Plus(D.Times(a));
+        ballOther.V = ballOther.V.Minus(D.Times(b));
+    }
 }
 
 func (this Ball) ToString() string {
